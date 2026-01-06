@@ -84,12 +84,28 @@ class SaleOrder(models.Model):
             if line.display_type == 'line_section':
                 # Save previous section if exists
                 if current_section:
-                    # Calculate final percentage of the section
+                    # First, save any active subsection belonging to the previous section
+                    if current_subsection:
+                        subsection_price = current_subsection.get('price_subtotal', 0.0)
+                        subsection_margin = current_subsection.get('margin', 0.0)
+                        if subsection_price > 0 and subsection_margin != 0:
+                            current_subsection['margin_percent'] = (
+                                subsection_margin / subsection_price
+                            ) * 100
+                        else:
+                            current_subsection['margin_percent'] = 0.0
+                        current_section['subsections'].append(current_subsection)
+                        current_subsection = None
+
+                    # Then, calculate final percentage of the section
                     section_price = current_section.get('price_subtotal', 0.0)
-                    if section_price > 0:
+                    section_margin = current_section.get('margin', 0.0)
+                    if section_price > 0 and section_margin != 0:
                         current_section['margin_percent'] = (
-                            current_section['margin'] / section_price
+                            section_margin / section_price
                         ) * 100
+                    else:
+                        current_section['margin_percent'] = 0.0
                     sections_data.append(current_section)
                 
                 # Create new section

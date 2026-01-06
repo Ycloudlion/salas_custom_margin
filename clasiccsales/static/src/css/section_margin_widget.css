@@ -18,7 +18,7 @@
 }
 
 .o_section_margin_header .fa {
-    color: #007bff;
+    color: #875A7B;
 }
 
 .table-responsive {
@@ -36,7 +36,7 @@
 }
 
 .o_section_margin_table thead.table-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #875A7B;
     color: #fff;
 }
 
@@ -66,8 +66,8 @@
     display: inline-flex;
     align-items: center;
     padding: 6px 12px;
-    background-color: #e3f2fd;
-    color: #1976d2;
+    background-color: #f0f0f0;
+    color: #875A7B;
     border-radius: 6px;
     font-size: 0.95em;
 }
@@ -102,9 +102,9 @@
 
 /* Estilos para totales de sección */
 .section_total_row {
-    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
-    border-top: 2px solid #90caf9;
-    border-bottom: 2px solid #90caf9;
+    background-color: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .section_total_row td {
@@ -113,19 +113,19 @@
 }
 
 .section-total-label {
-    color: #1565c0;
+    color: #875A7B;
     font-size: 1.05em;
 }
 
 .section-total-label .fa {
-    color: #1976d2;
+    color: #875A7B;
 }
 
 /* Estilos para filas de sección sin subsecciones */
 .section_row {
-    background: linear-gradient(90deg, #f3e5f5 0%, #e1bee7 100%);
-    border-top: 2px solid #ce93d8;
-    border-bottom: 2px solid #ce93d8;
+    background-color: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .section_row td {
@@ -147,9 +147,9 @@
 
 /* Estilos para total general */
 .grand_total_row {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #875A7B;
     color: #fff;
-    border-top: 3px solid #5a67d8;
+    border-top: 3px solid #714B67;
 }
 
 .grand_total_row td {
@@ -209,12 +209,12 @@
 }
 
 .bg-info {
-    background-color: #17a2b8 !important;
+    background-color: #875A7B !important;
     color: #fff;
 }
 
 .bg-primary {
-    background-color: #007bff !important;
+    background-color: #875A7B !important;
     color: #fff;
 }
 
