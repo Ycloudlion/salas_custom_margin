@@ -290,7 +290,7 @@ class SaleOrder(models.Model):
                                             class="btn btn-sm btn-primary apply_margin_btn" 
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
-                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: none;">
                                         <i class="fa fa-check" style="margin-right: 4px;"></i>Apply
                                     </button>
                                 </div>
@@ -354,7 +354,7 @@ class SaleOrder(models.Model):
                                             class="btn btn-sm btn-primary apply_margin_btn" 
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
-                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: none;">
                                         <i class="fa fa-check" style="margin-right: 4px;"></i>Apply
                                     </button>
                                 </div>

@@ -57,6 +57,26 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initMarginAdjuster() {
+    // Listen for input changes to show/hide apply button
+    document.body.addEventListener('input', function(e) {
+        const input = e.target.closest('.section_margin_input');
+        if (!input) return;
+        
+        const currentValue = parseFloat(input.value);
+        const originalValue = parseFloat(input.getAttribute('data-current-margin'));
+        const container = input.closest('div');
+        const applyBtn = container.querySelector('.apply_margin_btn');
+        
+        if (applyBtn) {
+            // Show button only if value has changed
+            if (!isNaN(currentValue) && currentValue !== originalValue) {
+                applyBtn.style.display = 'inline-block';
+            } else {
+                applyBtn.style.display = 'none';
+            }
+        }
+    });
+    
     // Use event delegation to handle dynamically loaded content
     document.body.addEventListener('click', async function(e) {
         // Check if clicked element or its parent is the apply button
