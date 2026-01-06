@@ -5,6 +5,10 @@ import { Component, useState, onWillUpdateProps } from "@odoo/owl";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
 import { formatFloat } from "@web/views/fields/formatters";
 
+/**
+ * SectionMarginWidget shows margin data by section for a sales order.
+ * All comments and messages are in English.
+ */
 export class SectionMarginWidget extends Component {
     setup() {
         this.state = useState({
@@ -12,10 +16,10 @@ export class SectionMarginWidget extends Component {
             totalMargin: 0,
             totalMarginPercent: 0,
         });
-        
+
         try {
             this._updateData();
-            
+
             onWillUpdateProps(() => {
                 try {
                     this._updateData();
@@ -24,16 +28,20 @@ export class SectionMarginWidget extends Component {
                 }
             });
         } catch (error) {
-            console.error("Error setting up SectionMarginWidget:", error);
+            console.error("Error initializing SectionMarginWidget:", error);
         }
     }
-    
+
+    /**
+     * Updates the component state with parsed data from the record.
+     */
     _updateData() {
         try {
             if (!this.props || !this.props.record || !this.props.record.data) {
+                // If no data found, reset state.
                 return;
             }
-            
+
             const jsonData = this.props.record.data[this.props.name];
             if (!jsonData) {
                 this.state.sections = [];
@@ -41,9 +49,9 @@ export class SectionMarginWidget extends Component {
                 this.state.totalMarginPercent = 0;
                 return;
             }
-            
+
             let data;
-            if (typeof jsonData === 'string') {
+            if (typeof jsonData === "string") {
                 try {
                     data = JSON.parse(jsonData);
                 } catch (parseError) {
@@ -61,7 +69,7 @@ export class SectionMarginWidget extends Component {
                 this.state.totalMarginPercent = 0;
                 return;
             }
-            
+
             this.state.sections = Array.isArray(data.sections) ? data.sections : [];
             this.state.totalMargin = Number(data.total_margin) || 0;
             this.state.totalMarginPercent = Number(data.total_margin_percent) || 0;
@@ -72,7 +80,11 @@ export class SectionMarginWidget extends Component {
             this.state.totalMarginPercent = 0;
         }
     }
-    
+
+    /**
+     * Formats a value as a currency string using the available currency symbol from the record.
+     * Falls back to '$' on failure.
+     */
     formatCurrency(value) {
         try {
             if (value === null || value === undefined || isNaN(value)) {
@@ -81,6 +93,7 @@ export class SectionMarginWidget extends Component {
             
             let symbol = '$';
             try {
+                // Try to retrieve the currency symbol from the record data
                 const currencyId = this.props?.record?.data?.currency_id;
                 if (currencyId && Array.isArray(currencyId) && currencyId.length >= 2) {
                     const currencyName = currencyId[1] || '';
@@ -90,9 +103,9 @@ export class SectionMarginWidget extends Component {
                     }
                 }
             } catch (error) {
-                // Usar símbolo por defecto si hay error
+                // Use default symbol '$' on error
             }
-            
+
             const formattedValue = formatFloat(Math.abs(value), { digits: [16, 2] });
             return `${symbol} ${formattedValue}`;
         } catch (error) {
@@ -100,7 +113,10 @@ export class SectionMarginWidget extends Component {
             return `$ ${Number(value || 0).toFixed(2)}`;
         }
     }
-    
+
+    /**
+     * Formats a number as a percent string with two decimals.
+     */
     formatPercent(value) {
         try {
             if (isNaN(value) || !isFinite(value) || value === null || value === undefined) {
@@ -119,6 +135,7 @@ SectionMarginWidget.props = {
     ...standardFieldProps,
 };
 
+// Register the custom widget in the Odoo fields registry.
 try {
     registry.category("fields").add("section_margin_widget", {
         component: SectionMarginWidget,
@@ -126,4 +143,3 @@ try {
 } catch (error) {
     console.error("Error registering section_margin_widget:", error);
 }
-

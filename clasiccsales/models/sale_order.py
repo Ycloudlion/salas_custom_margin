@@ -291,7 +291,7 @@ class SaleOrder(models.Model):
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
                                             style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
-                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
+                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Apply
                                     </button>
                                 </div>
                             </td>
@@ -355,7 +355,7 @@ class SaleOrder(models.Model):
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
                                             style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
-                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
+                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Apply
                                     </button>
                                 </div>
                             </td>
@@ -436,7 +436,7 @@ class SaleOrder(models.Model):
         if not section_lines:
             return {
                 'success': False,
-                'message': f'No se encontraron productos en la sección "{section_name}"'
+                'message': f'No products found in section "{section_name}"'
             }
         
         # Calculate current totals
@@ -460,7 +460,7 @@ class SaleOrder(models.Model):
         if total_cost == 0:
             return {
                 'success': False,
-                'message': 'No se puede ajustar: el costo total es 0'
+                'message': 'Cannot adjust: total cost is 0'
             }
         
         # Calculate target price needed to achieve target margin
@@ -473,7 +473,7 @@ class SaleOrder(models.Model):
         if target_margin_decimal >= 1.0:
             return {
                 'success': False,
-                'message': 'El margen no puede ser 100% o mayor'
+                'message': 'Margin cannot be 100% or greater'
             }
         
         target_total_price = total_cost / (1 - target_margin_decimal)
@@ -507,7 +507,7 @@ class SaleOrder(models.Model):
         
         return {
             'success': True,
-            'message': f'Ajuste aplicado exitosamente a {len(section_lines)} productos',
+            'message': f'Successfully adjusted {len(section_lines)} products',
             'section_name': section_name,
             'old_margin_percent': (total_price - total_cost) / total_price * 100 if total_price > 0 else 0,
             'new_margin_percent': new_margin_percent,

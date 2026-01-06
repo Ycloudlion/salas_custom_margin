@@ -10,8 +10,8 @@ class SectionMarginController(http.Controller):
     @http.route('/sale_order/adjust_section_margin', type='jsonrpc', auth='user', methods=['POST'])
     def adjust_section_margin(self, order_id, section_name, target_margin_percent):
         """
-        Adjust prices in a section to achieve target margin percentage
-        
+        Adjust prices in a section to achieve the target margin percentage
+
         :param order_id: ID of the sale order
         :param section_name: Name of the section to adjust
         :param target_margin_percent: Target margin percentage
@@ -22,7 +22,7 @@ class SectionMarginController(http.Controller):
             if not order_id or str(order_id).startswith('NewId_'):
                 return {
                     'success': False,
-                    'message': 'Debe guardar la orden de venta antes de ajustar los márgenes'
+                    'message': 'Please save the sales order before adjusting the margins.'
                 }
             
             # Convert to int
@@ -31,7 +31,7 @@ class SectionMarginController(http.Controller):
             except (ValueError, TypeError):
                 return {
                     'success': False,
-                    'message': 'ID de orden inválido. Por favor, guarde la orden primero.'
+                    'message': 'Invalid order ID. Please save the order first.'
                 }
             
             order = request.env['sale.order'].browse(order_id_int)
@@ -39,7 +39,7 @@ class SectionMarginController(http.Controller):
             if not order.exists():
                 return {
                     'success': False,
-                    'message': 'Orden de venta no encontrada'
+                    'message': 'Sales order not found.'
                 }
             
             # Call the adjustment method

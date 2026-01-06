@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-// Simple RPC function using fetch
+// Simple RPC function using fetch, returns a Promise
 async function odooRPC(route, params) {
     const response = await fetch(route, {
         method: 'POST',
@@ -14,17 +14,17 @@ async function odooRPC(route, params) {
             id: new Date().getTime(),
         }),
     });
-    
+
     const data = await response.json();
-    
+
     if (data.error) {
-        throw new Error(data.error.data?.message || data.error.message || 'Error en RPC');
+        throw new Error(data.error.data?.message || data.error.message || 'RPC Error');
     }
-    
+
     return data.result;
 }
 
-// Show temporary notification
+// Show a temporary notification
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -42,9 +42,9 @@ function showNotification(message, type = 'success') {
         animation: slideIn 0.3s ease-out;
     `;
     notification.innerHTML = `<i class="fa fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(() => notification.remove(), 300);
@@ -62,54 +62,54 @@ function initMarginAdjuster() {
         // Check if clicked element or its parent is the apply button
         const btn = e.target.closest('.apply_margin_btn');
         if (!btn) return;
-        
+
         e.preventDefault();
         e.stopPropagation();
-        
+
         const orderId = btn.getAttribute('data-order-id');
         const sectionName = btn.getAttribute('data-section-name');
         const inputContainer = btn.closest('td') || btn.closest('div');
         const input = inputContainer.querySelector('.section_margin_input');
         const targetMargin = parseFloat(input.value);
-        
+
         // Check if order is saved
         if (!orderId || orderId.toString().startsWith('NewId_')) {
-            showNotification('⚠️ Debe guardar la orden de venta primero', 'error');
+            showNotification('⚠️ Please save the sales order first', 'error');
             return;
         }
-        
+
         if (isNaN(targetMargin) || targetMargin < 0 || targetMargin > 100) {
-            showNotification('Por favor ingrese un margen válido entre 0 y 100%', 'error');
+            showNotification('Please enter a valid margin between 0 and 100%', 'error');
             return;
         }
-        
+
         // Disable button and show loading
         btn.disabled = true;
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-        
+
         try {
             const result = await odooRPC('/sale_order/adjust_section_margin', {
                 order_id: parseInt(orderId),
                 section_name: sectionName,
                 target_margin_percent: targetMargin
             });
-            
+
             if (result.success) {
                 // Show success notification
-                showNotification(`✓ Margen ajustado a ${result.new_margin_percent.toFixed(2)}%`, 'success');
-                
+                showNotification(`Margin adjusted to ${result.new_margin_percent.toFixed(2)}%`, 'success');
+
                 // Reload the page after a brief moment to show the notification
                 setTimeout(() => {
                     window.location.reload();
                 }, 800);
             } else {
-                showNotification(result.message || 'Error al ajustar margen', 'error');
+                showNotification(result.message || 'Error adjusting margin', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
         } catch (error) {
-            showNotification('Error al comunicarse con el servidor', 'error');
+            showNotification('Error communicating with server', 'error');
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
