@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="clasiccsales.SectionMarginWidget" owl="1">
+        <div class="section_margin_widget_container">
+            <t t-if="state.sections.length > 0">
+                <div class="o_section_margin_header">
+                    <h4 class="mb-3">
+                        <i class="fa fa-chart-line me-2"/>Section Margin Summary
+                    </h4>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover o_section_margin_table">
+                        <thead class="table-header">
+                            <tr>
+                                <th class="text-start col-section">Section</th>
+                                <th class="text-start col-subsection">Subsection</th>
+                                <th class="text-end col-margin">Margin</th>
+                                <th class="text-end col-percent">Margin (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="state.sections" t-as="section" t-key="section_index">
+                                <t t-set="hasSubsections" t-value="section.subsections and section.subsections.length > 0"/>
+                                <!-- If the section has subsections -->
+                                <t t-if="hasSubsections">
+                                    <t t-foreach="section.subsections" t-as="subsection" t-key="subsection_index">
+                                        <tr class="subsection_row">
+                                            <td class="text-start section-name-cell">
+                                                <t t-if="subsection_index == 0">
+                                                    <span class="section-badge">
+                                                        <i class="fa fa-folder-open me-1"/>
+                                                        <strong t-esc="section.name"/>
+                                                    </span>
+                                                </t>
+                                            </td>
+                                            <td class="text-start">
+                                                <span class="subsection-badge">
+                                                    <i class="fa fa-folder me-1"/>
+                                                    <span t-esc="subsection.name"/>
+                                                </span>
+                                            </td>
+                                            <td class="text-end margin-value">
+                                                <span t-esc="this.formatCurrency(subsection.margin)"/>
+                                            </td>
+                                            <td class="text-end percent-value">
+                                                <span class="badge bg-info" t-esc="this.formatPercent(subsection.margin_percent)"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <!-- Section total row -->
+                                    <tr class="section_total_row">
+                                        <td class="text-start" colspan="2">
+                                            <strong class="section-total-label">
+                                                <i class="fa fa-calculator me-1"/>
+                                                Total <t t-esc="section.name"/>
+                                            </strong>
+                                        </td>
+                                        <td class="text-end margin-value">
+                                            <strong t-esc="this.formatCurrency(section.margin)"/>
+                                        </td>
+                                        <td class="text-end percent-value">
+                                            <strong class="badge bg-primary" t-esc="this.formatPercent(section.margin_percent)"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <!-- If the section does NOT have subsections -->
+                                <t t-if="!hasSubsections">
+                                    <tr class="section_row">
+                                        <td class="text-start section-name-cell" colspan="2">
+                                            <span class="section-badge">
+                                                <i class="fa fa-folder-open me-1"/>
+                                                <strong t-esc="section.name"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-end margin-value">
+                                            <strong t-esc="this.formatCurrency(section.margin)"/>
+                                        </td>
+                                        <td class="text-end percent-value">
+                                            <strong class="badge bg-primary" t-esc="this.formatPercent(section.margin_percent)"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <!-- Spacer between sections -->
+                                <t t-if="section_index != state.sections.length - 1">
+                                    <tr class="section_spacer">
+                                        <td colspan="4" class="section-divider"></td>
+                                    </tr>
+                                </t>
+                            </t>
+                        </tbody>
+                        <tfoot>
+                            <tr class="grand_total_row">
+                                <td class="text-start" colspan="2">
+                                    <strong class="grand-total-label">
+                                        <i class="fa fa-chart-bar me-1"/>
+                                        GRAND TOTAL
+                                    </strong>
+                                </td>
+                                <td class="text-end margin-value">
+                                    <strong class="grand-total-margin" t-esc="this.formatCurrency(state.totalMargin)"/>
+                                </td>
+                                <td class="text-end percent-value">
+                                    <strong class="badge bg-success grand-total-percent" t-esc="this.formatPercent(state.totalMarginPercent)"/>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </t>
+            <t t-if="state.sections.length == 0">
+                <div class="alert alert-info text-center o-empty-message">
+                    <i class="fa fa-info-circle fa-2x mb-2"/>
+                    <p class="mb-0">There are no sections defined in this order.</p>
+                    <small class="text-muted">Add sections to order lines to see grouped margins.</small>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>
+
