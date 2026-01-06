@@ -3,7 +3,7 @@
 import { registry } from "@web/core/registry";
 import { Component, useState, onWillUpdateProps } from "@odoo/owl";
 import { standardFieldProps } from "@web/views/fields/standard_field_props";
-import { formatFloat } from "@web/fields/formatters";
+import { formatFloat } from "@web/views/fields/formatters";
 
 export class SectionMarginWidget extends Component {
     setup() {

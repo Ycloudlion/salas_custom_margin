@@ -243,7 +243,7 @@ class SaleOrder(models.Model):
             </div>
             <div class="table-responsive">
                 <table class="table table-hover" style="width: 100%; margin-bottom: 0; background-color: #fff; border-collapse: separate; border-spacing: 0;">
-                    <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
+                    <thead style="background: linear-gradient(135deg, #4a4a4a 0%, #2c2c2c 100%); color: #fff;">
                         <tr>
                             <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: left;">Section</th>
                             <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: left;">Subsection</th>
@@ -261,24 +261,35 @@ class SaleOrder(models.Model):
             subsections = section.get('subsections', [])
             
             if subsections:
-                # Section with subsections
-                for sub_idx, subsection in enumerate(subsections):
+                # Section with subsections - First show section row with totals
+                html += f"""
+                        <tr style="background: linear-gradient(90deg, #e0e0e0 0%, #bdbdbd 100%); border-top: 2px solid #9e9e9e; border-bottom: 2px solid #9e9e9e;">
+                            <td style="padding: 16px 12px; font-weight: 600; text-align: left; padding-left: 20px;" colspan="2">
+                                <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e0e0e0; color: #424242; border-radius: 6px; font-size: 0.95em;">
+                                    <i class="fa fa-folder-open" style="margin-right: 6px;"></i>
+                                    <strong>{section_name}</strong>
+                                </span>
+                            </td>
+                            <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #424242;">
+                                <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
+                            </td>
+                            <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
+                                <strong style="display: inline-block; padding: 6px 10px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
+                                    {section_margin_percent:.2f}%
+                                </strong>
+                            </td>
+                        </tr>
+                """
+                
+                # Then show all subsections below
+                for subsection in subsections:
                     sub_name = subsection.get('name', 'Unnamed')
                     sub_margin = subsection.get('margin', 0.0)
                     sub_margin_percent = subsection.get('margin_percent', 0.0)
                     
                     html += f"""
                         <tr style="background-color: #fafafa;">
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: left; padding-left: 20px;">
-                    """
-                    if sub_idx == 0:
-                        html += f"""
-                                <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e3f2fd; color: #1976d2; border-radius: 6px; font-size: 0.95em;">
-                                    <i class="fa fa-folder-open" style="margin-right: 6px;"></i>
-                                    <strong>{section_name}</strong>
-                                </span>
-                        """
-                    html += f"""
+                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: left; padding-left: 40px;">
                             </td>
                             <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: left;">
                                 <span style="display: inline-flex; align-items: center; padding: 4px 10px; background-color: #f5f5f5; color: #616161; border-radius: 4px; font-size: 0.9em;">
@@ -286,51 +297,31 @@ class SaleOrder(models.Model):
                                     {sub_name}
                                 </span>
                             </td>
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #2e7d32;">
+                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #424242;">
                                 {currency_symbol} {abs(sub_margin):,.2f}
                             </td>
                             <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: right;">
-                                <span style="display: inline-block; padding: 6px 10px; background-color: #17a2b8; color: #fff; border-radius: 0.25rem; font-size: 0.9em; font-weight: 600;">
+                                <span style="display: inline-block; padding: 6px 10px; background-color: #757575; color: #fff; border-radius: 0.25rem; font-size: 0.9em; font-weight: 600;">
                                     {sub_margin_percent:.2f}%
                                 </span>
                             </td>
                         </tr>
                     """
-                
-                # Section total
-                html += f"""
-                        <tr style="background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%); border-top: 2px solid #90caf9; border-bottom: 2px solid #90caf9;">
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: left;" colspan="2">
-                                <strong style="color: #1565c0; font-size: 1.05em;">
-                                    <i class="fa fa-calculator" style="color: #1976d2; margin-right: 6px;"></i>
-                                    Total {section_name}
-                                </strong>
-                            </td>
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #2e7d32;">
-                                <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
-                            </td>
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
-                                <strong style="display: inline-block; padding: 6px 10px; background-color: #007bff; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
-                                    {section_margin_percent:.2f}%
-                                </strong>
-                            </td>
-                        </tr>
-                """
             else:
                 # Section without subsections
                 html += f"""
-                        <tr style="background: linear-gradient(90deg, #f3e5f5 0%, #e1bee7 100%); border-top: 2px solid #ce93d8; border-bottom: 2px solid #ce93d8;">
+                        <tr style="background: linear-gradient(90deg, #eeeeee 0%, #e0e0e0 100%); border-top: 2px solid #bdbdbd; border-bottom: 2px solid #bdbdbd;">
                             <td style="padding: 16px 12px; font-weight: 600; text-align: left; padding-left: 20px;" colspan="2">
-                                <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e3f2fd; color: #1976d2; border-radius: 6px; font-size: 0.95em;">
+                                <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e0e0e0; color: #424242; border-radius: 6px; font-size: 0.95em;">
                                     <i class="fa fa-folder-open" style="margin-right: 6px;"></i>
                                     <strong>{section_name}</strong>
                                 </span>
                             </td>
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #2e7d32;">
+                            <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #424242;">
                                 <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
-                                <strong style="display: inline-block; padding: 6px 10px; background-color: #007bff; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
+                                <strong style="display: inline-block; padding: 6px 10px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
                                     {section_margin_percent:.2f}%
                                 </strong>
                             </td>
@@ -349,7 +340,7 @@ class SaleOrder(models.Model):
         html += f"""
                     </tbody>
                     <tfoot>
-                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border-top: 3px solid #5a67d8;">
+                        <tr style="background: linear-gradient(135deg, #4a4a4a 0%, #2c2c2c 100%); color: #fff; border-top: 3px solid #616161;">
                             <td style="padding: 18px 12px; font-weight: 700; font-size: 1.1em; color: #fff; text-align: left;" colspan="2">
                                 <strong style="color: #fff; font-size: 1.15em;">
                                     <i class="fa fa-chart-bar" style="color: #fff; margin-right: 6px;"></i>
@@ -360,7 +351,7 @@ class SaleOrder(models.Model):
                                 <strong style="color: #fff; font-size: 1.2em;">{currency_symbol} {abs(total_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 18px 12px; font-weight: 700; font-size: 1.1em; color: #fff; text-align: right;">
-                                <strong style="display: inline-block; padding: 8px 12px; background-color: #28a745; color: #fff; border-radius: 0.25rem; font-size: 1.1em;">
+                                <strong style="display: inline-block; padding: 8px 12px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 1.1em;">
                                     {total_margin_percent:.2f}%
                                 </strong>
                             </td>

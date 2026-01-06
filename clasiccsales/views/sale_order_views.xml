@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <!-- Buscar la última página del notebook y agregar antes de ella -->
             <xpath expr="(//notebook//page)[last()]" position="before">
-                <page string="Margins by Section" name="section_margins">
+                <page string="Margins Section" name="section_margins">
                     <field name="section_margins_html" readonly="1" nolabel="1"/>
                 </page>
             </xpath>
