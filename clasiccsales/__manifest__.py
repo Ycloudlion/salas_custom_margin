@@ -17,6 +17,7 @@
     'assets': {
         'web.assets_backend': [
             'clasiccsales/static/src/js/section_margin_widget.js',
+            'clasiccsales/static/src/js/margin_adjuster.js',
             'clasiccsales/static/src/xml/section_margin_widget.xml',
             'clasiccsales/static/src/css/section_margin_widget.css',
         ],

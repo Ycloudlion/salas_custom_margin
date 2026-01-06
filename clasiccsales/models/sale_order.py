@@ -274,9 +274,27 @@ class SaleOrder(models.Model):
                                 <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
-                                <strong style="display: inline-block; padding: 6px 10px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
-                                    {section_margin_percent:.2f}%
-                                </strong>
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                    <input type="number" 
+                                           class="section_margin_input" 
+                                           data-order-id="{self.id}"
+                                           data-section-name="{section_name}"
+                                           data-current-margin="{section_margin_percent:.2f}"
+                                           value="{section_margin_percent:.2f}" 
+                                           step="0.01" 
+                                           min="0" 
+                                           max="100"
+                                           style="width: 80px; padding: 6px 8px; border: 1px solid #9e9e9e; border-radius: 4px; font-size: 0.9em; font-weight: 600; text-align: right;" />
+                                    <span style="font-weight: 600; color: #424242;">%</span>
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary apply_margin_btn" 
+                                            data-order-id="{self.id}"
+                                            data-section-name="{section_name}"
+                                            onclick="console.log('Botón clickeado directamente'); return false;"
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; z-index: 1000; position: relative;">
+                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                 """
@@ -321,9 +339,27 @@ class SaleOrder(models.Model):
                                 <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
-                                <strong style="display: inline-block; padding: 6px 10px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 0.9em;">
-                                    {section_margin_percent:.2f}%
-                                </strong>
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                                    <input type="number" 
+                                           class="section_margin_input" 
+                                           data-order-id="{self.id}"
+                                           data-section-name="{section_name}"
+                                           data-current-margin="{section_margin_percent:.2f}"
+                                           value="{section_margin_percent:.2f}" 
+                                           step="0.01" 
+                                           min="0" 
+                                           max="100"
+                                           style="width: 80px; padding: 6px 8px; border: 1px solid #9e9e9e; border-radius: 4px; font-size: 0.9em; font-weight: 600; text-align: right;" />
+                                    <span style="font-weight: 600; color: #424242;">%</span>
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary apply_margin_btn" 
+                                            data-order-id="{self.id}"
+                                            data-section-name="{section_name}"
+                                            onclick="console.log('Botón clickeado directamente'); return false;"
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; z-index: 1000; position: relative;">
+                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                 """
@@ -364,3 +400,119 @@ class SaleOrder(models.Model):
         
         return html
 
+    def adjust_section_margin(self, section_name, target_margin_percent):
+        """
+        Adjust prices of products in a section to achieve target margin percentage.
+        Distribution: Equitably (same percentage increase for all products).
+        
+        :param section_name: Name of the section to adjust
+        :param target_margin_percent: Target margin percentage to achieve
+        :return: dict with results
+        """
+        self.ensure_one()
+        
+        # Find all lines belonging to this section (including subsections)
+        section_lines = []
+        current_section = None
+        in_target_section = False
+        
+        for line in self.order_line:
+            # Identify section
+            if line.display_type == 'line_section':
+                # Check if this is our target section
+                if line.name == section_name:
+                    current_section = line.name
+                    in_target_section = True
+                else:
+                    # Found a different section, stop collecting
+                    in_target_section = False
+                    current_section = None
+            # Subsections belong to the current section
+            elif line.display_type == 'line_subsection':
+                # Subsections don't change the in_target_section flag
+                pass
+            # Collect product lines from target section (including those in subsections)
+            elif in_target_section and line.display_type == False and line.product_id:
+                section_lines.append(line)
+        
+        if not section_lines:
+            return {
+                'success': False,
+                'message': f'No se encontraron productos en la sección "{section_name}"'
+            }
+        
+        # Calculate current totals
+        total_cost = 0.0
+        total_price = 0.0
+        
+        for line in section_lines:
+            qty = float(line.product_uom_qty) if line.product_uom_qty else 0.0
+            price_subtotal = float(line.price_subtotal) if line.price_subtotal else 0.0
+            
+            # Get cost
+            cost = 0.0
+            if hasattr(line, 'purchase_price') and line.purchase_price:
+                cost = float(line.purchase_price) * qty
+            elif hasattr(line.product_id, 'standard_price') and line.product_id.standard_price:
+                cost = float(line.product_id.standard_price) * qty
+            
+            total_cost += cost
+            total_price += price_subtotal
+        
+        if total_cost == 0:
+            return {
+                'success': False,
+                'message': 'No se puede ajustar: el costo total es 0'
+            }
+        
+        # Calculate target price needed to achieve target margin
+        # margin_percent = ((price - cost) / price) * 100
+        # target_margin_percent = ((target_price - cost) / target_price) * 100
+        # Solving for target_price:
+        # target_price = cost / (1 - target_margin_percent/100)
+        
+        target_margin_decimal = target_margin_percent / 100.0
+        if target_margin_decimal >= 1.0:
+            return {
+                'success': False,
+                'message': 'El margen no puede ser 100% o mayor'
+            }
+        
+        target_total_price = total_cost / (1 - target_margin_decimal)
+        
+        # Calculate adjustment factor (same percentage for all products)
+        adjustment_factor = target_total_price / total_price if total_price > 0 else 1.0
+        
+        # Apply adjustment to all lines
+        updated_lines = []
+        for line in section_lines:
+            old_price = line.price_unit
+            new_price = old_price * adjustment_factor
+            
+            # Update price_unit - this will trigger recalculation of subtotals and margins
+            line.price_unit = new_price
+            
+            updated_lines.append({
+                'name': line.name or line.product_id.name,
+                'old_price': old_price,
+                'new_price': new_price
+            })
+        
+        # Force recalculation of order totals
+        self._compute_section_margins_json()
+        self._compute_section_margins_html()
+        
+        # Recalculate to verify
+        new_total_price = sum(float(line.price_subtotal) for line in section_lines)
+        new_margin = new_total_price - total_cost
+        new_margin_percent = (new_margin / new_total_price * 100) if new_total_price > 0 else 0
+        
+        return {
+            'success': True,
+            'message': f'Ajuste aplicado exitosamente a {len(section_lines)} productos',
+            'section_name': section_name,
+            'old_margin_percent': (total_price - total_cost) / total_price * 100 if total_price > 0 else 0,
+            'new_margin_percent': new_margin_percent,
+            'adjustment_factor': adjustment_factor,
+            'updated_lines': updated_lines
+        }
