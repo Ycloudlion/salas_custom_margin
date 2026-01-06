@@ -290,8 +290,7 @@ class SaleOrder(models.Model):
                                             class="btn btn-sm btn-primary apply_margin_btn" 
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
-                                            onclick="console.log('Botón clickeado directamente'); return false;"
-                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; z-index: 1000; position: relative;">
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
                                         <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
                                     </button>
                                 </div>
@@ -355,8 +354,7 @@ class SaleOrder(models.Model):
                                             class="btn btn-sm btn-primary apply_margin_btn" 
                                             data-order-id="{self.id}"
                                             data-section-name="{section_name}"
-                                            onclick="console.log('Botón clickeado directamente'); return false;"
-                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; z-index: 1000; position: relative;">
+                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
                                         <i class="fa fa-check" style="margin-right: 4px;"></i>Aplicar
                                     </button>
                                 </div>

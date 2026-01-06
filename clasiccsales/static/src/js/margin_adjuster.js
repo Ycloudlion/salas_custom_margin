@@ -1,7 +1,5 @@
 /** @odoo-module **/
 
-console.log('Margin Adjuster JS cargado');
-
 // Simple RPC function using fetch
 async function odooRPC(route, params) {
     const response = await fetch(route, {
@@ -26,22 +24,45 @@ async function odooRPC(route, params) {
     return data.result;
 }
 
+// Show temporary notification
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background-color: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        border-radius: 5px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 10000;
+        font-size: 14px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
+    `;
+    notification.innerHTML = `<i class="fa fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Ready - Inicializando manejadores de margen');
     initMarginAdjuster();
 });
 
 function initMarginAdjuster() {
-    console.log('Inicializando MarginAdjuster');
-    
     // Use event delegation to handle dynamically loaded content
     document.body.addEventListener('click', async function(e) {
         // Check if clicked element or its parent is the apply button
         const btn = e.target.closest('.apply_margin_btn');
         if (!btn) return;
         
-        console.log('Botón de ajuste clickeado', btn);
         e.preventDefault();
         e.stopPropagation();
         
@@ -51,73 +72,65 @@ function initMarginAdjuster() {
         const input = inputContainer.querySelector('.section_margin_input');
         const targetMargin = parseFloat(input.value);
         
-        console.log('Datos del ajuste:', {
-            orderId: orderId,
-            sectionName: sectionName,
-            targetMargin: targetMargin
-        });
-        
         // Check if order is saved
         if (!orderId || orderId.toString().startsWith('NewId_')) {
-            alert('⚠️ Debe GUARDAR la orden de venta antes de ajustar los márgenes.\n\nPor favor, haga click en "Guardar" primero.');
+            showNotification('⚠️ Debe guardar la orden de venta primero', 'error');
             return;
         }
         
         if (isNaN(targetMargin) || targetMargin < 0 || targetMargin > 100) {
-            alert('Por favor ingrese un margen válido entre 0 y 100%');
-            return;
-        }
-        
-        // Confirm action
-        if (!confirm(`¿Desea ajustar el margen de la sección "${sectionName}" a ${targetMargin}%?`)) {
+            showNotification('Por favor ingrese un margen válido entre 0 y 100%', 'error');
             return;
         }
         
         // Disable button and show loading
         btn.disabled = true;
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Ajustando...';
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
         
         try {
-            console.log('Llamando al servidor...');
             const result = await odooRPC('/sale_order/adjust_section_margin', {
                 order_id: parseInt(orderId),
                 section_name: sectionName,
                 target_margin_percent: targetMargin
             });
             
-            console.log('Resultado del servidor:', result);
-            
             if (result.success) {
-                const message = result.message + 
-                    '\n\nMargen anterior: ' + result.old_margin_percent.toFixed(2) + '%' +
-                    '\nNuevo margen: ' + result.new_margin_percent.toFixed(2) + '%' +
-                    '\nFactor de ajuste: ' + result.adjustment_factor.toFixed(4);
+                // Show success notification
+                showNotification(`✓ Margen ajustado a ${result.new_margin_percent.toFixed(2)}%`, 'success');
                 
-                alert(message);
-                
-                // Reload the page to show updated values
-                window.location.reload();
+                // Reload the page after a brief moment to show the notification
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
             } else {
-                alert('Error: ' + (result.message || 'Error desconocido'));
+                showNotification(result.message || 'Error al ajustar margen', 'error');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
         } catch (error) {
-            console.error('Error al ajustar margen:', error);
-            alert('Error al comunicarse con el servidor: ' + (error.message || 'Error desconocido'));
+            showNotification('Error al comunicarse con el servidor', 'error');
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
     });
-    
-    console.log('Event listener agregado al body para .apply_margin_btn');
 }
 
 // Try to initialize immediately in case DOM is already ready
-if (document.readyState === 'loading') {
-    console.log('DOM aún cargando, esperando...');
-} else {
-    console.log('DOM ya está listo, inicializando inmediatamente');
+if (document.readyState !== 'loading') {
     initMarginAdjuster();
 }
+
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
