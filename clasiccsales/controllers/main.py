@@ -7,7 +7,7 @@ import json
 
 class SectionMarginController(http.Controller):
     
-    @http.route('/sale_order/adjust_section_margin', type='json', auth='user', methods=['POST'])
+    @http.route('/sale_order/adjust_section_margin', type='jsonrpc', auth='user', methods=['POST'])
     def adjust_section_margin(self, order_id, section_name, target_margin_percent):
         """
         Adjust prices in a section to achieve target margin percentage
@@ -18,7 +18,23 @@ class SectionMarginController(http.Controller):
         :return: dict with results
         """
         try:
-            order = request.env['sale.order'].browse(int(order_id))
+            # Check if order_id is valid
+            if not order_id or str(order_id).startswith('NewId_'):
+                return {
+                    'success': False,
+                    'message': 'Debe guardar la orden de venta antes de ajustar los márgenes'
+                }
+            
+            # Convert to int
+            try:
+                order_id_int = int(order_id)
+            except (ValueError, TypeError):
+                return {
+                    'success': False,
+                    'message': 'ID de orden inválido. Por favor, guarde la orden primero.'
+                }
+            
+            order = request.env['sale.order'].browse(order_id_int)
             
             if not order.exists():
                 return {
@@ -32,7 +48,9 @@ class SectionMarginController(http.Controller):
             return result
             
         except Exception as e:
+            import traceback
             return {
                 'success': False,
-                'message': f'Error: {str(e)}'
+                'message': f'Error: {str(e)}',
+                'traceback': traceback.format_exc()
             }

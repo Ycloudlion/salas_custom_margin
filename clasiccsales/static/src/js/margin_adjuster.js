@@ -57,6 +57,12 @@ function initMarginAdjuster() {
             targetMargin: targetMargin
         });
         
+        // Check if order is saved
+        if (!orderId || orderId.toString().startsWith('NewId_')) {
+            alert('⚠️ Debe GUARDAR la orden de venta antes de ajustar los márgenes.\n\nPor favor, haga click en "Guardar" primero.');
+            return;
+        }
+        
         if (isNaN(targetMargin) || targetMargin < 0 || targetMargin > 100) {
             alert('Por favor ingrese un margen válido entre 0 y 100%');
             return;
