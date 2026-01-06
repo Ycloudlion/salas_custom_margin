@@ -116,13 +116,30 @@ function initMarginAdjuster() {
             });
 
             if (result.success) {
+                // Update the input value with the new margin
+                input.value = result.new_margin_percent.toFixed(2);
+                
+                // Update the data attribute so button stays hidden
+                input.setAttribute('data-current-margin', result.new_margin_percent.toFixed(2));
+                
+                // Hide the apply button since value is now saved
+                btn.style.display = 'none';
+                
+                // Restore button HTML
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                
                 // Show success notification
                 showNotification(`Margin adjusted to ${result.new_margin_percent.toFixed(2)}%`, 'success');
-
-                // Reload the page after a brief moment to show the notification
+                
+                // Trigger form save to update computed fields and Order Lines
                 setTimeout(() => {
-                    window.location.reload();
-                }, 800);
+                    // Try to trigger save if form is in edit mode
+                    const saveBtn = document.querySelector('.o_form_button_save');
+                    if (saveBtn && saveBtn.offsetParent !== null) {
+                        saveBtn.click();
+                    }
+                }, 500);
             } else {
                 showNotification(result.message || 'Error adjusting margin', 'error');
                 btn.disabled = false;
