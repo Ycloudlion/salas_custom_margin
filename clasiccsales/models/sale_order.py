@@ -48,29 +48,6 @@ class SaleOrder(models.Model):
                 """
 
     def _get_section_margins(self):
-        """
-        Returns a data structure with margins grouped by section and subsection.
-        
-        Return structure:
-        {
-            'sections': [
-                {
-                    'name': 'Section Name',
-                    'margin': 100.0,
-                    'margin_percent': 25.5,
-                    'subsections': [
-                        {
-                            'name': 'Subsection Name',
-                            'margin': 50.0,
-                            'margin_percent': 30.0,
-                        }
-                    ]
-                }
-            ],
-            'total_margin': 200.0,
-            'total_margin_percent': 20.0
-        }
-        """
         self.ensure_one()
         
         sections_data = []
@@ -115,6 +92,7 @@ class SaleOrder(models.Model):
                     'margin_percent': 0.0,
                     'price_subtotal': 0.0,
                     'subsections': [],
+                    'products': [],  # Products directly under section
                 }
                 current_subsection = None
             
@@ -136,6 +114,7 @@ class SaleOrder(models.Model):
                     'margin': 0.0,
                     'margin_percent': 0.0,
                     'price_subtotal': 0.0,
+                    'products': [],  # Products in this subsection
                 }
             
             # Normal product line
@@ -145,6 +124,7 @@ class SaleOrder(models.Model):
                 
                 # Get line margin (use margin field if available)
                 line_margin = 0.0
+                line_margin_percent = 0.0
                 try:
                     # Try to get margin from margin field (if sale_margin is installed)
                     if hasattr(line, 'margin') and line.margin is not None:
@@ -160,16 +140,34 @@ class SaleOrder(models.Model):
                             cost = float(line.product_id.standard_price) * float(line.product_uom_qty)
                         
                         line_margin = float(line_price_subtotal) - cost
+                    
+                    # Calculate margin percent for this line
+                    if line_price_subtotal > 0:
+                        line_margin_percent = (line_margin / line_price_subtotal) * 100
+                        
                 except (ValueError, TypeError, AttributeError):
                     # If error, margin will be 0
                     line_margin = 0.0
+                    line_margin_percent = 0.0
                 
                 # Only process if there is a price
                 if line_price_subtotal > 0:
+                    # Create product data
+                    product_data = {
+                        'line_id': line.id,
+                        'name': line.name or (line.product_id.name if line.product_id else 'Unnamed'),
+                        'margin': line_margin,
+                        'margin_percent': line_margin_percent,
+                    }
+                    
                     # Add to subsection if exists
                     if current_subsection and current_section:
                         current_subsection['margin'] += line_margin
                         current_subsection['price_subtotal'] += line_price_subtotal
+                        current_subsection['products'].append(product_data)
+                    # Add to section's direct products if no subsection
+                    elif current_section:
+                        current_section['products'].append(product_data)
                     
                     # Add to section if exists
                     if current_section:
@@ -238,17 +236,15 @@ class SaleOrder(models.Model):
             """
         
         html = f"""
-        <div class="section_margin_widget_container" style="padding: 20px; background-color: #ffffff;">
-            <div class="o_section_margin_header" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e9ecef;">
-            </div>
-            <div class="table-responsive">
+        <div class="section_margin_widget_container" style="width: 100%; padding: 0 20px; margin: 0; background-color: #ffffff; box-sizing: border-box;">
+            <div class="table-responsive" style="width: 100%; overflow-x: auto;">
                 <table class="table table-hover" style="width: 100%; margin-bottom: 0; background-color: #fff; border-collapse: separate; border-spacing: 0;">
                     <thead style="background: linear-gradient(135deg, #4a4a4a 0%, #2c2c2c 100%); color: #fff;">
                         <tr>
                             <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: left;">Section</th>
-                            <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: left;">Subsection</th>
+                            <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: left;">       </th>
                             <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: right;">Margin</th>
-                            <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: right;">Margin (%)</th>
+                            <th style="padding: 16px 12px; font-weight: 600; font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.5px; border: none; color: #fff; text-align: right; width: 280px;">Margin (%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -259,19 +255,19 @@ class SaleOrder(models.Model):
             section_margin = section.get('margin', 0.0)
             section_margin_percent = section.get('margin_percent', 0.0)
             subsections = section.get('subsections', [])
+            section_products = section.get('products', [])
             
-            if subsections:
-                # Section with subsections - First show section row with totals
-                html += f"""
-                        <tr style="background: linear-gradient(90deg, #e0e0e0 0%, #bdbdbd 100%); border-top: 2px solid #9e9e9e; border-bottom: 2px solid #9e9e9e;">
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: left; padding-left: 20px;" colspan="2">
+            # Section header row
+            html += f"""
+                        <tr style="background: linear-gradient(90deg, #e0e0e0 0%, #bdbdbd 100%); border-top: 2px solid #9e9e9e; border-bottom: 1px solid #9e9e9e;">
+                            <td style="padding: 16px 12px; font-weight: 600; text-align: left; padding-left: 10px;" colspan="2">
                                 <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e0e0e0; color: #424242; border-radius: 6px; font-size: 0.95em;">
-                                    <i class="fa fa-folder-open" style="margin-right: 6px;"></i>
+                                    <i class="fa fa-folder-open" style="margin-right: 8px;"></i>
                                     <strong>{section_name}</strong>
                                 </span>
                             </td>
                             <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #424242;">
-                                <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
+                                <strong>{abs(section_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
                                 <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
@@ -296,66 +292,114 @@ class SaleOrder(models.Model):
                                 </div>
                             </td>
                         </tr>
-                """
+            """
+            
+            # Show subsections (if any) - ONLY display, no editing
+            for subsection in subsections:
+                sub_name = subsection.get('name', 'Unnamed')
+                sub_margin = subsection.get('margin', 0.0)
+                sub_margin_percent = subsection.get('margin_percent', 0.0)
+                sub_products = subsection.get('products', [])
                 
-                # Then show all subsections below
-                for subsection in subsections:
-                    sub_name = subsection.get('name', 'Unnamed')
-                    sub_margin = subsection.get('margin', 0.0)
-                    sub_margin_percent = subsection.get('margin_percent', 0.0)
-                    
-                    html += f"""
-                        <tr style="background-color: #fafafa;">
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: left; padding-left: 40px;">
-                            </td>
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: left;">
-                                <span style="display: inline-flex; align-items: center; padding: 4px 10px; background-color: #f5f5f5; color: #616161; border-radius: 4px; font-size: 0.9em;">
+                html += f"""
+                        <tr style="background-color: #f5f5f5; border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 12px; vertical-align: middle; text-align: left; padding-left: 30px;" colspan="2">
+                                <span style="display: inline-flex; align-items: center; padding: 4px 10px; background-color: #e8e8e8; color: #616161; border-radius: 4px; font-size: 0.9em;">
                                     <i class="fa fa-folder" style="margin-right: 6px;"></i>
-                                    {sub_name}
+                                    <strong>{sub_name}</strong>
                                 </span>
                             </td>
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #424242;">
-                                {currency_symbol} {abs(sub_margin):,.2f}
+                            <td style="padding: 12px; vertical-align: middle; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #424242;">
+                                {abs(sub_margin):,.2f}
                             </td>
-                            <td style="padding: 14px 12px; vertical-align: middle; border-bottom: 1px solid #e9ecef; text-align: right;">
+                            <td style="padding: 12px; vertical-align: middle; text-align: right;">
                                 <span style="display: inline-block; padding: 6px 10px; background-color: #757575; color: #fff; border-radius: 0.25rem; font-size: 0.9em; font-weight: 600;">
                                     {sub_margin_percent:.2f}%
                                 </span>
                             </td>
                         </tr>
-                    """
-            else:
-                # Section without subsections
-                html += f"""
-                        <tr style="background: linear-gradient(90deg, #eeeeee 0%, #e0e0e0 100%); border-top: 2px solid #bdbdbd; border-bottom: 2px solid #bdbdbd;">
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: left; padding-left: 20px;" colspan="2">
-                                <span style="display: inline-flex; align-items: center; padding: 6px 12px; background-color: #e0e0e0; color: #424242; border-radius: 6px; font-size: 0.95em;">
-                                    <i class="fa fa-folder-open" style="margin-right: 6px;"></i>
-                                    <strong>{section_name}</strong>
+                """
+                
+                # Show products within subsection
+                for product in sub_products:
+                    prod_name = product.get('name', 'Unnamed')
+                    prod_margin = product.get('margin', 0.0)
+                    prod_margin_percent = product.get('margin_percent', 0.0)
+                    prod_line_id = product.get('line_id', 0)
+                    
+                    html += f"""
+                        <tr style="background-color: #fafafa; border-bottom: 1px solid #eeeeee;">
+                            <td style="padding: 10px; vertical-align: middle; text-align: left; padding-left: 60px;" colspan="2">
+                                <span style="color: #666; font-size: 0.85em;">
+                                    <i class="fa fa-cube" style="margin-right: 4px; color: #999;"></i>
+                                    {prod_name}
                                 </span>
                             </td>
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: right; font-family: 'Courier New', monospace; color: #424242;">
-                                <strong>{currency_symbol} {abs(section_margin):,.2f}</strong>
+                            <td style="padding: 10px; vertical-align: middle; text-align: right; font-family: 'Courier New', monospace; color: #666; font-size: 0.85em;">
+                                {abs(prod_margin):,.2f}
                             </td>
-                            <td style="padding: 16px 12px; font-weight: 600; text-align: right;">
-                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                            <td style="padding: 10px; vertical-align: middle; text-align: right;">
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
                                     <input type="number" 
-                                           class="section_margin_input" 
+                                           class="product_margin_input" 
                                            data-order-id="{self.id}"
-                                           data-section-name="{section_name}"
-                                           data-current-margin="{section_margin_percent:.2f}"
-                                           value="{section_margin_percent:.2f}" 
+                                           data-line-id="{prod_line_id}"
+                                           data-current-margin="{prod_margin_percent:.2f}"
+                                           value="{prod_margin_percent:.2f}" 
                                            step="0.01" 
                                            min="0" 
                                            max="100"
-                                           style="width: 80px; padding: 6px 8px; border: 1px solid #9e9e9e; border-radius: 4px; font-size: 0.9em; font-weight: 600; text-align: right;" />
-                                    <span style="font-weight: 600; color: #424242;">%</span>
+                                           style="width: 80px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.85em; text-align: right;" />
+                                    <span style="font-size: 0.85em; color: #666;">%</span>
                                     <button type="button"
-                                            class="btn btn-sm btn-primary apply_margin_btn" 
+                                            class="btn btn-sm btn-primary apply_product_margin_btn" 
                                             data-order-id="{self.id}"
-                                            data-section-name="{section_name}"
-                                            style="padding: 6px 12px; background-color: #616161; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; white-space: nowrap; display: none;">
-                                        <i class="fa fa-check" style="margin-right: 4px;"></i>Apply
+                                            data-line-id="{prod_line_id}"
+                                            style="padding: 4px 10px; background-color: #9e9e9e; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em; white-space: nowrap; display: none;">
+                                        <i class="fa fa-check" style="margin-right: 2px;"></i>Apply
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    """
+            
+            # Show products directly under section (no subsection)
+            for product in section_products:
+                prod_name = product.get('name', 'Unnamed')
+                prod_margin = product.get('margin', 0.0)
+                prod_margin_percent = product.get('margin_percent', 0.0)
+                prod_line_id = product.get('line_id', 0)
+                
+                html += f"""
+                        <tr style="background-color: #fafafa; border-bottom: 1px solid #eeeeee;">
+                            <td style="padding: 10px; vertical-align: middle; text-align: left; padding-left: 40px;" colspan="2">
+                                <span style="color: #666; font-size: 0.85em;">
+                                    <i class="fa fa-cube" style="margin-right: 4px; color: #999;"></i>
+                                    {prod_name}
+                                </span>
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: right; font-family: 'Courier New', monospace; color: #666; font-size: 0.85em;">
+                                {abs(prod_margin):,.2f}
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: right;">
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                                    <input type="number" 
+                                           class="product_margin_input" 
+                                           data-order-id="{self.id}"
+                                           data-line-id="{prod_line_id}"
+                                           data-current-margin="{prod_margin_percent:.2f}"
+                                           value="{prod_margin_percent:.2f}" 
+                                           step="0.01" 
+                                           min="0" 
+                                           max="100"
+                                           style="width: 80px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.85em; text-align: right;" />
+                                    <span style="font-size: 0.85em; color: #666;">%</span>
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary apply_product_margin_btn" 
+                                            data-order-id="{self.id}"
+                                            data-line-id="{prod_line_id}"
+                                            style="padding: 4px 10px; background-color: #9e9e9e; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8em; white-space: nowrap; display: none;">
+                                        <i class="fa fa-check" style="margin-right: 2px;"></i>Apply
                                     </button>
                                 </div>
                             </td>
@@ -382,7 +426,7 @@ class SaleOrder(models.Model):
                                 </strong>
                             </td>
                             <td style="padding: 18px 12px; font-weight: 700; font-size: 1.1em; color: #fff; text-align: right;">
-                                <strong style="color: #fff; font-size: 1.2em;">{currency_symbol} {abs(total_margin):,.2f}</strong>
+                                <strong style="color: #fff; font-size: 1.2em;">{abs(total_margin):,.2f}</strong>
                             </td>
                             <td style="padding: 18px 12px; font-weight: 700; font-size: 1.1em; color: #fff; text-align: right;">
                                 <strong style="display: inline-block; padding: 8px 12px; background-color: #616161; color: #fff; border-radius: 0.25rem; font-size: 1.1em;">
@@ -447,12 +491,12 @@ class SaleOrder(models.Model):
             qty = float(line.product_uom_qty) if line.product_uom_qty else 0.0
             price_subtotal = float(line.price_subtotal) if line.price_subtotal else 0.0
             
-            # Get cost
+            # Get cost and round to 2 decimals for precision
             cost = 0.0
             if hasattr(line, 'purchase_price') and line.purchase_price:
-                cost = float(line.purchase_price) * qty
+                cost = round(float(line.purchase_price) * qty, 2)
             elif hasattr(line.product_id, 'standard_price') and line.product_id.standard_price:
-                cost = float(line.product_id.standard_price) * qty
+                cost = round(float(line.product_id.standard_price) * qty, 2)
             
             total_cost += cost
             total_price += price_subtotal
@@ -481,11 +525,12 @@ class SaleOrder(models.Model):
         # Calculate adjustment factor (same percentage for all products)
         adjustment_factor = target_total_price / total_price if total_price > 0 else 1.0
         
-        # Apply adjustment to all lines
+        # Apply adjustment to all lines with proper rounding
         updated_lines = []
         for line in section_lines:
             old_price = line.price_unit
-            new_price = old_price * adjustment_factor
+            # Calculate new price and round to currency precision (2 decimals)
+            new_price = round(old_price * adjustment_factor, 2)
             
             # Update price_unit - this will trigger recalculation of subtotals and margins
             line.price_unit = new_price
@@ -513,4 +558,90 @@ class SaleOrder(models.Model):
             'new_margin_percent': new_margin_percent,
             'adjustment_factor': adjustment_factor,
             'updated_lines': updated_lines
+        }
+
+    def adjust_product_margin(self, line_id, target_margin_percent):
+        """
+        Adjust price of a single product line to achieve target margin percentage.
+        
+        :param line_id: ID of the sale order line
+        :param target_margin_percent: Target margin percentage to achieve
+        :return: dict with results
+        """
+        self.ensure_one()
+        
+        # Find the specific line
+        line = self.order_line.filtered(lambda l: l.id == line_id)
+        
+        if not line:
+            return {
+                'success': False,
+                'message': f'Product line not found'
+            }
+        
+        line = line[0]
+        
+        if line.display_type or not line.product_id:
+            return {
+                'success': False,
+                'message': 'Cannot adjust margin for non-product lines'
+            }
+        
+        # Get current values
+        qty = float(line.product_uom_qty) if line.product_uom_qty else 0.0
+        old_price_unit = float(line.price_unit) if line.price_unit else 0.0
+        
+        # Get cost and round to 2 decimals for precision
+        cost_per_unit = 0.0
+        if hasattr(line, 'purchase_price') and line.purchase_price:
+            cost_per_unit = round(float(line.purchase_price), 2)
+        elif hasattr(line.product_id, 'standard_price') and line.product_id.standard_price:
+            cost_per_unit = round(float(line.product_id.standard_price), 2)
+        
+        if cost_per_unit == 0:
+            return {
+                'success': False,
+                'message': 'Cannot adjust: product cost is 0'
+            }
+        
+        # Calculate target price
+        # margin_percent = ((price - cost) / price) * 100
+        # Solving for price: price = cost / (1 - margin_percent/100)
+        target_margin_decimal = target_margin_percent / 100.0
+        if target_margin_decimal >= 1.0:
+            return {
+                'success': False,
+                'message': 'Margin cannot be 100% or greater'
+            }
+        
+        # Calculate new price and round to currency precision (2 decimals)
+        new_price_unit = round(cost_per_unit / (1 - target_margin_decimal), 2)
+        
+        # Calculate old margin
+        old_subtotal = old_price_unit * qty
+        old_cost_total = cost_per_unit * qty
+        old_margin = old_subtotal - old_cost_total
+        old_margin_percent = (old_margin / old_subtotal * 100) if old_subtotal > 0 else 0
+        
+        # Update price with rounded value
+        line.price_unit = new_price_unit
+        
+        # Force recalculation
+        self._compute_section_margins_json()
+        self._compute_section_margins_html()
+        
+        # Calculate new margin
+        new_subtotal = new_price_unit * qty
+        new_cost_total = cost_per_unit * qty
+        new_margin = new_subtotal - new_cost_total
+        new_margin_percent = (new_margin / new_subtotal * 100) if new_subtotal > 0 else 0
+        
+        return {
+            'success': True,
+            'message': f'Successfully adjusted product price',
+            'product_name': line.name or line.product_id.name,
+            'old_price_unit': old_price_unit,
+            'new_price_unit': new_price_unit,
+            'old_margin_percent': old_margin_percent,
+            'new_margin_percent': new_margin_percent,
         }

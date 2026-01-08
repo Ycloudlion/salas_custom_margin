@@ -24,6 +24,7 @@ async function odooRPC(route, params) {
     return data.result;
 }
 
+
 // Show a temporary notification
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
@@ -59,13 +60,22 @@ document.addEventListener('DOMContentLoaded', function() {
 function initMarginAdjuster() {
     // Listen for input changes to show/hide apply button
     document.body.addEventListener('input', function(e) {
-        const input = e.target.closest('.section_margin_input');
+        // Handle section inputs
+        let input = e.target.closest('.section_margin_input');
+        let btnClass = '.apply_margin_btn';
+        
+        // Handle product inputs
+        if (!input) {
+            input = e.target.closest('.product_margin_input');
+            btnClass = '.apply_product_margin_btn';
+        }
+        
         if (!input) return;
         
         const currentValue = parseFloat(input.value);
         const originalValue = parseFloat(input.getAttribute('data-current-margin'));
         const container = input.closest('div');
-        const applyBtn = container.querySelector('.apply_margin_btn');
+        const applyBtn = container.querySelector(btnClass);
         
         if (applyBtn) {
             // Show button only if value has changed
@@ -79,23 +89,51 @@ function initMarginAdjuster() {
     
     // Use event delegation to handle dynamically loaded content
     document.body.addEventListener('click', async function(e) {
-        // Check if clicked element or its parent is the apply button
-        const btn = e.target.closest('.apply_margin_btn');
+        // Check if clicked element or its parent is one of the apply buttons
+        let btn = e.target.closest('.apply_margin_btn');
+        let adjustType = 'section';
+        
+        if (!btn) {
+            btn = e.target.closest('.apply_product_margin_btn');
+            adjustType = 'product';
+        }
+        
         if (!btn) return;
 
         e.preventDefault();
         e.stopPropagation();
 
         const orderId = btn.getAttribute('data-order-id');
-        const sectionName = btn.getAttribute('data-section-name');
         const inputContainer = btn.closest('td') || btn.closest('div');
-        const input = inputContainer.querySelector('.section_margin_input');
-        const targetMargin = parseFloat(input.value);
+        let input, targetMargin, route, params;
 
         // Check if order is saved
         if (!orderId || orderId.toString().startsWith('NewId_')) {
             showNotification('⚠️ Please save the sales order first', 'error');
             return;
+        }
+
+        // Prepare parameters based on adjustment type
+        if (adjustType === 'section') {
+            const sectionName = btn.getAttribute('data-section-name');
+            input = inputContainer.querySelector('.section_margin_input');
+            targetMargin = parseFloat(input.value);
+            route = '/sale_order/adjust_section_margin';
+            params = {
+                order_id: parseInt(orderId),
+                section_name: sectionName,
+                target_margin_percent: targetMargin
+            };
+        } else if (adjustType === 'product') {
+            const lineId = btn.getAttribute('data-line-id');
+            input = inputContainer.querySelector('.product_margin_input');
+            targetMargin = parseFloat(input.value);
+            route = '/sale_order/adjust_product_margin';
+            params = {
+                order_id: parseInt(orderId),
+                line_id: parseInt(lineId),
+                target_margin_percent: targetMargin
+            };
         }
 
         if (isNaN(targetMargin) || targetMargin < 0 || targetMargin > 100) {
@@ -109,37 +147,17 @@ function initMarginAdjuster() {
         btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
 
         try {
-            const result = await odooRPC('/sale_order/adjust_section_margin', {
-                order_id: parseInt(orderId),
-                section_name: sectionName,
-                target_margin_percent: targetMargin
-            });
+            const result = await odooRPC(route, params);
 
             if (result.success) {
-                // Update the input value with the new margin
-                input.value = result.new_margin_percent.toFixed(2);
-                
-                // Update the data attribute so button stays hidden
-                input.setAttribute('data-current-margin', result.new_margin_percent.toFixed(2));
-                
-                // Hide the apply button since value is now saved
-                btn.style.display = 'none';
-                
-                // Restore button HTML
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-                
                 // Show success notification
-                showNotification(`Margin adjusted to ${result.new_margin_percent.toFixed(2)}%`, 'success');
+                const itemType = adjustType === 'section' ? 'Section' : 'Product';
+                showNotification(`${itemType} margin adjusted to ${result.new_margin_percent.toFixed(2)}%`, 'success');
                 
-                // Trigger form save to update computed fields and Order Lines
+                // Reload the page to show all updated values
                 setTimeout(() => {
-                    // Try to trigger save if form is in edit mode
-                    const saveBtn = document.querySelector('.o_form_button_save');
-                    if (saveBtn && saveBtn.offsetParent !== null) {
-                        saveBtn.click();
-                    }
-                }, 500);
+                    window.location.reload();
+                }, 1000);
             } else {
                 showNotification(result.message || 'Error adjusting margin', 'error');
                 btn.disabled = false;
