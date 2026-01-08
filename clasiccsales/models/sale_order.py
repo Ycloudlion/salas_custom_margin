@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api
 import json
+import math
 
 
 class SaleOrder(models.Model):
@@ -577,8 +578,8 @@ class SaleOrder(models.Model):
         updated_lines = []
         for line in section_lines:
             old_price = line.price_unit
-            # Calculate new price and round to currency precision (2 decimals)
-            new_price = round(old_price * adjustment_factor, 2)
+            # Calculate new price and round UP to ensure target margin is reached
+            new_price = math.ceil(old_price * adjustment_factor * 100) / 100
             
             # Update price_unit - this will trigger recalculation of subtotals and margins
             line.price_unit = new_price
@@ -632,21 +633,66 @@ class SaleOrder(models.Model):
         }
 
     def adjust_subsection_margin(self, section_name, subsection_name, target_margin_percent):
+        """
+        Adjust prices of products in a subsection to achieve target margin percentage.
+        Distribution: Equitably (same percentage increase for all products).
         
-        # Get all lines in this subsection
-        subsection_lines = self.order_line.filtered(
-            lambda l: (l.display_type == False and 
-                      (l.name or '').startswith(subsection_name))
-        )
+        :param section_name: Name of the parent section
+        :param subsection_name: Name of the subsection to adjust
+        :param target_margin_percent: Target margin percentage to achieve
+        :return: dict with results
+        """
+        self.ensure_one()
+        
+        # Find all lines belonging to this specific subsection
+        subsection_lines = []
+        current_section = None
+        current_subsection = None
+        in_target_section = False
+        in_target_subsection = False
+        
+        for line in self.order_line:
+            # Identify section
+            if line.display_type == 'line_section':
+                # Check if this is our target section
+                if line.name == section_name:
+                    current_section = line.name
+                    in_target_section = True
+                    in_target_subsection = False  # Reset subsection flag
+                else:
+                    # Found a different section, stop collecting
+                    in_target_section = False
+                    in_target_subsection = False
+                    current_section = None
+                    current_subsection = None
+            # Identify subsection
+            elif line.display_type == 'line_subsection':
+                if in_target_section:
+                    # Check if this is our target subsection
+                    if line.name == subsection_name:
+                        current_subsection = line.name
+                        in_target_subsection = True
+                    else:
+                        # Different subsection in the same section
+                        current_subsection = line.name
+                        in_target_subsection = False
+                else:
+                    # Not in target section, ignore
+                    current_subsection = None
+                    in_target_subsection = False
+            # Collect product lines from target subsection only
+            elif in_target_section and in_target_subsection and line.display_type == False and line.product_id:
+                subsection_lines.append(line)
         
         if not subsection_lines:
             return {
                 'success': False,
-                'message': 'No products found in subsection'
+                'message': f'No products found in subsection "{subsection_name}" of section "{section_name}"'
             }
         
         # Get current margin data
-        sections = json.loads(self.section_margins_json) if self.section_margins_json else []
+        margins_data = json.loads(self.section_margins_json) if self.section_margins_json else {}
+        sections = margins_data.get('sections', []) if isinstance(margins_data, dict) else []
         section_data = next((s for s in sections if s.get('name') == section_name), None)
         subsection_data = None
         if section_data:
@@ -710,7 +756,8 @@ class SaleOrder(models.Model):
         updated_lines = []
         for line in subsection_lines:
             old_price = line.price_unit
-            new_price = round(old_price * adjustment_factor, 2)
+            # Calculate new price and round UP to ensure target margin is reached
+            new_price = math.ceil(old_price * adjustment_factor * 100) / 100
             
             line.price_unit = new_price
             
@@ -819,8 +866,8 @@ class SaleOrder(models.Model):
                 'message': 'Margin cannot be 100% or greater'
             }
         
-        # Calculate new price and round to currency precision (2 decimals)
-        new_price_unit = round(cost_per_unit / (1 - target_margin_decimal), 2)
+        # Calculate new price and round UP to ensure target margin is reached
+        new_price_unit = math.ceil((cost_per_unit / (1 - target_margin_decimal)) * 100) / 100
         
         # Calculate old margin
         old_subtotal = old_price_unit * qty
