@@ -563,6 +563,7 @@ class SaleOrder(models.Model):
             line.price_unit = new_price
             
             updated_lines.append({
+                'line_id': line.id,
                 'name': line.name or line.product_id.name,
                 'old_price': old_price,
                 'new_price': new_price
