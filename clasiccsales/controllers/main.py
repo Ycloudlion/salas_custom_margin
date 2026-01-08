@@ -54,6 +54,54 @@ class SectionMarginController(http.Controller):
                 'traceback': traceback.format_exc()
             }
 
+    @http.route('/sale_order/adjust_subsection_margin', type='jsonrpc', auth='user', methods=['POST'])
+    def adjust_subsection_margin(self, order_id, section_name, subsection_name, target_margin_percent):
+        """
+        Adjust the prices in a subsection to achieve the target margin percentage.
+
+        :param order_id: ID of the sale order
+        :param section_name: Name of the parent section
+        :param subsection_name: Name of the subsection to adjust
+        :param target_margin_percent: Desired target margin percentage for the subsection
+        :return: dict with result status and message
+        """
+        try:
+            # Validate order ID
+            if not order_id or str(order_id).startswith('NewId_'):
+                return {
+                    'success': False,
+                    'message': 'Please save the sales order before adjusting the margins.'
+                }
+
+            # Ensure IDs are integers
+            try:
+                order_id_int = int(order_id)
+            except (ValueError, TypeError):
+                return {
+                    'success': False,
+                    'message': 'Invalid order ID. Please save the order first.'
+                }
+
+            order = request.env['sale.order'].browse(order_id_int)
+
+            if not order.exists():
+                return {
+                    'success': False,
+                    'message': 'Sales order not found.'
+                }
+
+            # Perform subsection margin adjustment
+            result = order.adjust_subsection_margin(section_name, subsection_name, float(target_margin_percent))
+            return result
+
+        except Exception as e:
+            import traceback
+            return {
+                'success': False,
+                'message': f'Error: {str(e)}',
+                'traceback': traceback.format_exc()
+            }
+
     @http.route('/sale_order/adjust_product_margin', type='jsonrpc', auth='user', methods=['POST'])
     def adjust_product_margin(self, order_id, line_id, target_margin_percent):
         """

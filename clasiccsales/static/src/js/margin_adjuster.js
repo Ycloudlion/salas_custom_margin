@@ -161,11 +161,17 @@ function initMarginAdjuster() {
         let input = e.target.closest('.section_margin_input');
         let btnClass = '.apply_margin_btn';
         
-        // Handle product inputs
+        // Handle subsection inputs
         if (!input) {
-            input = e.target.closest('.product_margin_input');
-            btnClass = '.apply_product_margin_btn';
+            input = e.target.closest('.subsection_margin_input');
+            btnClass = '.apply_subsection_margin_btn';
         }
+        
+        // Handle product inputs (COMMENTED - NOT USED CURRENTLY)
+        // if (!input) {
+        //     input = e.target.closest('.product_margin_input');
+        //     btnClass = '.apply_product_margin_btn';
+        // }
         
         if (!input) return;
         
@@ -191,9 +197,15 @@ function initMarginAdjuster() {
         let adjustType = 'section';
         
         if (!btn) {
-            btn = e.target.closest('.apply_product_margin_btn');
-            adjustType = 'product';
+            btn = e.target.closest('.apply_subsection_margin_btn');
+            adjustType = 'subsection';
         }
+        
+        // Product margin adjustment (COMMENTED - NOT USED CURRENTLY)
+        // if (!btn) {
+        //     btn = e.target.closest('.apply_product_margin_btn');
+        //     adjustType = 'product';
+        // }
         
         if (!btn) return;
 
@@ -221,7 +233,21 @@ function initMarginAdjuster() {
                 section_name: sectionName,
                 target_margin_percent: targetMargin
             };
-        } else if (adjustType === 'product') {
+        } else if (adjustType === 'subsection') {
+            const sectionName = btn.getAttribute('data-section-name');
+            const subsectionName = btn.getAttribute('data-subsection-name');
+            input = inputContainer.querySelector('.subsection_margin_input');
+            targetMargin = parseFloat(input.value);
+            route = '/sale_order/adjust_subsection_margin';
+            params = {
+                order_id: parseInt(orderId),
+                section_name: sectionName,
+                subsection_name: subsectionName,
+                target_margin_percent: targetMargin
+            };
+        }
+        // Product margin adjustment (COMMENTED - NOT USED CURRENTLY)
+        /* else if (adjustType === 'product') {
             const lineId = btn.getAttribute('data-line-id');
             input = inputContainer.querySelector('.product_margin_input');
             targetMargin = parseFloat(input.value);
@@ -231,10 +257,11 @@ function initMarginAdjuster() {
                 line_id: parseInt(lineId),
                 target_margin_percent: targetMargin
             };
-        }
+        } */
 
-        if (isNaN(targetMargin) || targetMargin < 0 || targetMargin > 100) {
-            showNotification('Please enter a valid margin between 0 and 100%', 'error');
+        // Validate margin input (0-99.99%)
+        if (isNaN(targetMargin) || targetMargin < 0 || targetMargin >= 100) {
+            showNotification('Please enter a valid margin between 0% and 99.99%', 'error');
             return;
         }
 

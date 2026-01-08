@@ -18,10 +18,12 @@ class MarginHistory(models.Model):
     
     adjustment_type = fields.Selection([
         ('section', 'Section'),
+        ('subsection', 'Subsection'),
         ('product', 'Product'),
     ], string='Adjustment Type', required=True)
     
     section_name = fields.Char(string='Section Name')
+    subsection_name = fields.Char(string='Subsection Name')
     line_id = fields.Many2one('sale.order.line', string='Product Line')
     product_name = fields.Char(string='Product Name')
     
@@ -50,7 +52,12 @@ class MarginHistory(models.Model):
         if adjustment_type == 'section':
             vals['section_name'] = old_data.get('section_name', '')
             vals['affected_lines'] = json.dumps(new_data.get('updated_lines', []))
-            # For sections, we do not store unit price (not applicable)
+            vals['old_price_unit'] = 0
+            vals['new_price_unit'] = 0
+        elif adjustment_type == 'subsection':
+            vals['section_name'] = old_data.get('section_name', '')
+            vals['subsection_name'] = old_data.get('subsection_name', '')
+            vals['affected_lines'] = json.dumps(new_data.get('updated_lines', []))
             vals['old_price_unit'] = 0
             vals['new_price_unit'] = 0
         else:

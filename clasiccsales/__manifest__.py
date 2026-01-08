@@ -21,6 +21,7 @@
             'clasiccsales/static/src/js/margin_adjuster.js',
             'clasiccsales/static/src/xml/section_margin_widget.xml',
             'clasiccsales/static/src/css/section_margin_widget.css',
+            'clasiccsales/static/src/css/margin_history.css',
         ],
     },
     'installable': True,

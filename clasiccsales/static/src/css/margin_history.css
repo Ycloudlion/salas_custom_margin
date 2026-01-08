@@ -1,0 +1,167 @@
+/* ================================
+   MARGIN HISTORY TABLE STYLES
+   ================================ */
+
+/* Container */
+.history-container {
+    width: calc(100% + 32px);
+    margin: 30px -16px 0 -16px;
+    border-top: 2px solid #dee2e6;
+    padding: 20px 16px 0 16px;
+    box-sizing: border-box;
+}
+
+.history-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.history-header i {
+    color: #4a4a4a;
+}
+
+.history-header .subtitle {
+    font-size: 0.8em;
+    color: #6c757d;
+    font-weight: normal;
+}
+
+/* History table wrapper */
+.history-container .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    padding: 0;
+    margin: 0;
+}
+
+/* History table */
+.history-table {
+    width: 100%;
+    margin-bottom: 0;
+    background-color: #fff;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.history-table thead {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: #fff;
+}
+
+.history-table thead th {
+    padding: 12px;
+    font-weight: 600;
+    font-size: 0.9em;
+    border: none;
+    color: #fff;
+}
+
+.history-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.history-table tbody tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.history-table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+.history-table tbody td {
+    padding: 10px;
+    vertical-align: middle;
+}
+
+/* Type badges */
+.history-type-badge {
+    padding: 4px 8px;
+    color: #fff;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.history-type-badge.product {
+    background-color: #28a745;
+}
+
+.history-type-badge.subsection {
+    background-color: #17a2b8;
+}
+
+.history-type-badge.section {
+    background-color: #007bff;
+}
+
+/* Item name */
+.history-item-name {
+    font-weight: 600;
+}
+
+/* Margin cells */
+.history-margin-old {
+    font-family: 'Courier New', monospace;
+    color: #6c757d;
+}
+
+.history-margin-new {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #28a745;
+}
+
+/* Date and user */
+.history-date,
+.history-user {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+/* Restore button */
+.rollback_margin_btn {
+    padding: 4px 10px;
+    background-color: #6c757d;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.rollback_margin_btn i {
+    margin-right: 4px;
+}
+
+.rollback_margin_btn:hover {
+    background-color: #5a6268;
+}
+
+/* Empty state */
+.history-empty {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.history-empty i {
+    margin-bottom: 10px;
+    color: #17a2b8;
+    font-size: 2em;
+}
+
+.history-empty .title {
+    margin: 10px 0;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.history-empty .subtitle {
+    margin: 5px 0;
+    color: #6c757d;
+}
