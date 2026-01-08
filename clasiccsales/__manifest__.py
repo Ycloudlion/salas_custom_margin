@@ -9,7 +9,7 @@
         that displays margin and margin percentage grouped by section and subsection,
         with totals separated by each section.
     """,
-    'author': 'Clasicc',
+    'author': 'yhonier Arias',
     'depends': ['sale', 'sale_margin'],
     'data': [
         'security/ir.model.access.csv',
