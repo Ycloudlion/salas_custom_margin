@@ -12,6 +12,7 @@
     'author': 'Clasicc',
     'depends': ['sale', 'sale_margin'],
     'data': [
+        'security/ir.model.access.csv',
         'views/sale_order_views.xml',
     ],
     'assets': {

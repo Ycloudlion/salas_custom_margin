@@ -19,6 +19,7 @@ class SaleOrder(models.Model):
         store=False,
         sanitize=False,
     )
+    
 
     @api.depends('order_line', 'order_line.margin', 'order_line.margin_percent',
                  'order_line.display_type', 'order_line.price_subtotal',
@@ -38,12 +39,23 @@ class SaleOrder(models.Model):
         """Generate HTML to display margins"""
         for order in self:
             try:
-                order.section_margins_html = order._generate_margins_html()
+                margins_html = order._generate_margins_html()
+                # Append history HTML if order is saved
+                if order.id:
+                    # Compute history HTML (without depends, calculated on demand)
+                    history_html = order._generate_margin_history_html()
+                    # Always append history section (even if empty message)
+                    margins_html += history_html
+                order.section_margins_html = margins_html
             except Exception as e:
                 # In case of error, show error message
+                import logging
+                _logger = logging.getLogger(__name__)
+                _logger.exception('Error in _compute_section_margins_html')
                 order.section_margins_html = f"""
                     <div class="alert alert-danger">
                         <p>Error generating margins: {str(e)}</p>
+                        <pre>{str(e)}</pre>
                     </div>
                 """
 
@@ -483,6 +495,21 @@ class SaleOrder(models.Model):
                 'message': f'No products found in section "{section_name}"'
             }
         
+        # Get current margin BEFORE adjustment for history
+        margins_data = self._get_section_margins()
+        section_data = next((s for s in margins_data.get('sections', []) 
+                            if s.get('name') == section_name), None)
+        old_margin_percent = section_data.get('margin_percent', 0) if section_data else 0
+        
+        # Save old prices for history
+        old_prices = {}
+        for line in section_lines:
+            old_prices[line.id] = {
+                'line_id': line.id,
+                'product_name': line.name or (line.product_id.name if line.product_id else 'Unnamed'),
+                'old_price': float(line.price_unit),
+            }
+        
         # Calculate current totals
         total_cost = 0.0
         total_price = 0.0
@@ -550,11 +577,33 @@ class SaleOrder(models.Model):
         new_margin = new_total_price - total_cost
         new_margin_percent = (new_margin / new_total_price * 100) if new_total_price > 0 else 0
         
+        # Prepare data for history
+        old_data = {
+            'section_name': section_name,
+            'margin_percent': old_margin_percent,
+        }
+        
+        new_data = {
+            'margin_percent': new_margin_percent,
+            'updated_lines': updated_lines,
+        }
+        
+        # Save to history
+        try:
+            self.env['sale.order.margin.history'].create_history(
+                self.id, 'section', old_data, new_data
+            )
+        except Exception as e:
+            # Don't fail if history fails, just log it
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f'Error saving margin history: {str(e)}')
+        
         return {
             'success': True,
             'message': f'Successfully adjusted {len(section_lines)} products',
             'section_name': section_name,
-            'old_margin_percent': (total_price - total_cost) / total_price * 100 if total_price > 0 else 0,
+            'old_margin_percent': old_margin_percent,
             'new_margin_percent': new_margin_percent,
             'adjustment_factor': adjustment_factor,
             'updated_lines': updated_lines
@@ -636,6 +685,30 @@ class SaleOrder(models.Model):
         new_margin = new_subtotal - new_cost_total
         new_margin_percent = (new_margin / new_subtotal * 100) if new_subtotal > 0 else 0
         
+        # Prepare data for history
+        old_data = {
+            'line_id': line_id,
+            'product_name': line.name or line.product_id.name,
+            'margin_percent': old_margin_percent,
+            'price_unit': old_price_unit,
+        }
+        
+        new_data = {
+            'margin_percent': new_margin_percent,
+            'price_unit': new_price_unit,
+        }
+        
+        # Save to history
+        try:
+            self.env['sale.order.margin.history'].create_history(
+                self.id, 'product', old_data, new_data
+            )
+        except Exception as e:
+            # Don't fail if history fails, just log it
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f'Error saving margin history: {str(e)}')
+        
         return {
             'success': True,
             'message': f'Successfully adjusted product price',
@@ -645,3 +718,225 @@ class SaleOrder(models.Model):
             'old_margin_percent': old_margin_percent,
             'new_margin_percent': new_margin_percent,
         }
+
+    def _generate_margin_history_html(self):
+        """Generate HTML to display margin history - returns HTML string"""
+        self.ensure_one()
+        
+        if not self.id:
+            return ''
+        
+        # Get history records (last 20)
+        try:
+            history_records = self.env['sale.order.margin.history'].search([
+                ('order_id', '=', self.id)
+            ], order='create_date desc', limit=20)
+        except Exception as e:
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.error(f'Error accessing margin history: {str(e)}')
+            return f"""
+                <div style="padding: 20px; text-align: center; color: #dc3545; margin-top: 30px; border-top: 2px solid #dee2e6; padding-top: 20px;">
+                    <i class="fa fa-exclamation-triangle fa-2x" style="margin-bottom: 10px;"></i>
+                    <p><strong>Error loading history:</strong> {str(e)}</p>
+                </div>
+            """
+        
+        if not history_records:
+            return """
+                <div style="margin-top: 30px; border-top: 2px solid #dee2e6; padding-top: 20px;">
+                    <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <i class="fa fa-history" style="color: #4a4a4a;"></i>
+                        <span>Modification History</span>
+                    </h4>
+                    <div style="padding: 20px; text-align: center; color: #6c757d; background-color: #f8f9fa; border-radius: 5px;">
+                        <i class="fa fa-info-circle fa-2x" style="margin-bottom: 10px; color: #17a2b8;"></i>
+                        <p style="margin: 10px 0; font-size: 1.1em;"><strong>No history yet</strong></p>
+                        <p style="margin: 5px 0; color: #6c757d;">Modify any margin (section or product) and you will see the change history here.</p>
+                    </div>
+                </div>
+            """
+        
+        # Build HTML table (when there are records)
+        html = """
+        <div style="margin-top: 30px; border-top: 2px solid #dee2e6; padding-top: 20px;">
+            <h4 style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <i class="fa fa-history" style="color: #4a4a4a;"></i>
+                <span>Modification History</span>
+                <span style="font-size: 0.8em; color: #6c757d; font-weight: normal;">(last 20)</span>
+            </h4>
+            <div class="table-responsive" style="width: 100%; overflow-x: auto;">
+                <table class="table" style="width: 100%; margin-bottom: 0; background-color: #fff; border-collapse: separate; border-spacing: 0;">
+                    <thead style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: #fff;">
+                        <tr>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: left; border: none; color: #fff;">Type</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: left; border: none; color: #fff;">Item</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: right; border: none; color: #fff;">Previous Margin</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: right; border: none; color: #fff;">New Margin</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: center; border: none; color: #fff;">Date</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: left; border: none; color: #fff;">User</th>
+                            <th style="padding: 12px; font-weight: 600; font-size: 0.9em; text-align: center; border: none; color: #fff;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        
+        for idx, record in enumerate(history_records):
+            # Format date
+            date_str = ''
+            if record.create_date:
+                date_str = record.create_date.strftime('%d/%m/%Y %H:%M')
+            
+            # Get user name
+            user_name = record.create_uid.name if record.create_uid else ''
+            
+            # Type badge
+            type_badge = '<span style="padding: 4px 8px; background-color: #28a745; color: #fff; border-radius: 3px; font-size: 0.85em; font-weight: 600;">Product</span>' if record.adjustment_type == 'product' else '<span style="padding: 4px 8px; background-color: #007bff; color: #fff; border-radius: 3px; font-size: 0.85em; font-weight: 600;">Section</span>'
+            
+            # Item name
+            item_name = record.product_name if record.adjustment_type == 'product' else record.section_name
+            
+            # Row style
+            row_bg = '#fafafa' if idx % 2 == 0 else '#ffffff'
+            
+            html += f"""
+                        <tr style="background-color: {row_bg}; border-bottom: 1px solid #e9ecef;">
+                            <td style="padding: 10px; vertical-align: middle; text-align: left;">
+                                {type_badge}
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: left; font-weight: 600;">
+                                {item_name or '-'}
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: right; font-family: 'Courier New', monospace; color: #6c757d;">
+                                {record.old_margin_percent:.2f}%
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: right; font-family: 'Courier New', monospace; font-weight: 600; color: #28a745;">
+                                <strong>{record.new_margin_percent:.2f}%</strong>
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: center; font-size: 0.9em; color: #6c757d;">
+                                {date_str}
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: left; font-size: 0.9em; color: #6c757d;">
+                                {user_name}
+                            </td>
+                            <td style="padding: 10px; vertical-align: middle; text-align: center;">
+                                <button type="button"
+                                        class="btn btn-sm btn-secondary rollback_margin_btn" 
+                                        data-order-id="{self.id}"
+                                        data-history-id="{record.id}"
+                                        data-item-name="{item_name or ''}"
+                                        data-old-margin="{record.old_margin_percent:.2f}"
+                                        data-new-margin="{record.new_margin_percent:.2f}"
+                                        style="padding: 4px 10px; background-color: #6c757d; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85em; white-space: nowrap;">
+                                    <i class="fa fa-undo" style="margin-right: 4px;"></i>Restore
+                                </button>
+                            </td>
+                        </tr>
+            """
+        
+        html += """
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        """
+        
+        return html
+
+    def rollback_margin(self, history_id):
+        """
+        Restore a previous margin value from the history record
+
+        :param history_id: ID of the history record to restore
+        :return: dict with the result
+        """
+        self.ensure_one()
+        
+        history = self.env['sale.order.margin.history'].browse(history_id)
+        
+        if not history.exists():
+            return {
+                'success': False,
+                'message': 'History record not found'
+            }
+        
+        if history.order_id != self:
+            return {
+                'success': False,
+                'message': 'History does not belong to this order'
+            }
+        
+        try:
+            if history.adjustment_type == 'product':
+                # Restore individual product
+                line = history.line_id
+                if not line.exists():
+                    return {
+                        'success': False,
+                        'message': 'Product line no longer exists'
+                    }
+                
+                # Restore previous price
+                line.price_unit = history.old_price_unit
+                
+                # Force recalculation
+                self._compute_section_margins_json()
+                self._compute_section_margins_html()
+                
+                return {
+                    'success': True,
+                    'message': f'Margin for "{history.product_name}" restored to {history.old_margin_percent:.2f}%'
+                }
+                
+            elif history.adjustment_type == 'section':
+                # Restore all products in the section
+                if not history.affected_lines:
+                    return {
+                        'success': False,
+                        'message': 'No affected lines information found'
+                    }
+                
+                affected_lines_data = json.loads(history.affected_lines)
+                restored_count = 0
+                
+                for line_data in affected_lines_data:
+                    line_id = line_data.get('line_id')
+                    if not line_id:
+                        continue
+                    
+                    line = self.env['sale.order.line'].browse(line_id)
+                    if line.exists() and line.order_id == self:
+                        old_price = line_data.get('old_price')
+                        if old_price:
+                            line.price_unit = old_price
+                            restored_count += 1
+                
+                if restored_count == 0:
+                    return {
+                        'success': False,
+                        'message': 'Could not restore any lines'
+                    }
+                
+                # Force recalculation
+                self._compute_section_margins_json()
+                self._compute_section_margins_html()
+                
+                return {
+                    'success': True,
+                    'message': f'Section "{history.section_name}" restored to {history.old_margin_percent:.2f}% ({restored_count} products)'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': 'Unknown adjustment type'
+                }
+                
+        except Exception as e:
+            import traceback
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.error(f'Error restoring margin: {str(e)}\n{traceback.format_exc()}')
+            return {
+                'success': False,
+                'message': f'Error restoring: {str(e)}'
+            }
